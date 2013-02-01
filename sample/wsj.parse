@@ -1,0 +1,8 @@
+( (S (CC But)
+    (NP-SBJ (PRP it) )
+    (VP (VBZ 's)
+      (VP (VBG building)
+        (PP-CLR (IN on)
+          (NP (DT a) (JJ long) (NN tradition) ))))
+    (. .) ))
+

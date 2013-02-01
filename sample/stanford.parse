@@ -1,0 +1,16 @@
+;; a tree parsed by the Stanford parser.
+(ROOT
+  (S
+    (NP (NNP Daiei))
+    (ADVP (RB also))
+    (VP (VBZ plans)
+      (S
+        (VP (TO to)
+          (VP (VB handle)
+            (NP
+              (NP (NNP AGF) (POS 's))
+              (NN life) (NN insurance))
+            (PP (IN in)
+              (NP (DT the) (NN future)))))))
+    (. .)))
+
