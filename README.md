@@ -17,9 +17,7 @@ Note that to run this tool, there is no need to install the code and additional 
 
     $ ./bracket_to_tikz_qtree.py [options] FILE
 
-or
-
-    $ cat FILE | ./bracket_to_tikz_qtree.py
+    $ ./bracket_to_tikz_qtree.py [options] [FILE] -
 
 Please note that you need to prepare for the input file `FILE` which contains bracket texts that you want to convert to the tikz-qtree format.
 
