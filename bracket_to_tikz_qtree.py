@@ -13,7 +13,10 @@ In particular, this tool aims at converting to work with the David Chiang's tikz
 """
 
 import optparse
+import os
 import sys
+import subprocess
+import tempfile
 
 class LaTeXFormatter(object):
 
@@ -39,11 +42,23 @@ class LaTeXFormatter(object):
 
 ### Actual converter.
 
+# LaTeX treats the following characters as special characters in the
+# syntax.
+special_chars = ['{', '}', '$', '&', '%']
+
+def replace_special(s):
+  for c in special_chars:
+    s = s.replace(c, '\\' + c)
+  return s
+
 def to_qtree(text):
   """Convert a bracketed text to the Qtree style brackets."""
   return '''\Tree ''' + text.replace('(', '[.').replace(')', ' ]')
 
 ### Reader
+
+def tokenize(s):
+  return s.replace('(',' ( ').replace(')',' ) ').split()
 
 def _read(f):
   """Read lines of bracketed texts.
@@ -54,19 +69,34 @@ def _read(f):
   """
   sents = []
   s = ''
+  depth = 0
   for i, l in enumerate(f):
     if l.startswith(';'):       # comment
       continue
 
-    # TODO: change the assumption that each parse tree is delimitted by newline.
-    if i > 0 and l.startswith('\n'):
-      # strip the last line only.
-      sents.append(s.rstrip())
-      s = ''
+    if depth == 0 and l.startswith('\n'):
       continue
+    elif l.startswith('\n'):
+      raise SyntaxError('unexpected EOF line while reading')
 
     if l.startswith('( (S'):    # Hack for Penn Treebank's style format.
       l = l.replace('( (S', '(ROOT (S')
+
+    lis = tokenize(l)
+    for v in lis:
+      if v == '(':
+        depth += 1
+      elif v == ')':
+        depth -= 1
+
+    l = replace_special(l)
+
+    if depth == 0:
+      s += l
+      sents.append(s.rstrip())
+      s = ''
+      depth = 0
+      continue
 
     s += l
   return sents
@@ -85,8 +115,31 @@ def parse_options():
                     help='option of documentclass [default: %default]')
   parser.add_option('--tikz-opt', dest='tikz_opt', default='',
                     help='option to change the style of the Qtree [default: %default]')
+  parser.add_option('--enable-pdf', dest='enable_pdf', action="store_true", default=False,
+                    help='Flag to enable to compile with pdfLaTeX [default: %default]')
+  parser.add_option('--out-prefix', dest='out_prefix', default='qt00',
+                    help='Prefix name to name generated pdf files. This option has a meaning when you turn `--enable-pdf` on [default %default]')
   (options, unused_args) = parser.parse_args()
   return (options, unused_args)
+
+def check_and_remove(filename):
+  if os.path.exists(filename):
+    os.remove(filename)
+
+def exec_latex(file, latex_cmd='pdflatex'):
+  cmd = [latex_cmd, file]
+  try:
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+  except:
+    print '========='
+    print 'ERROR: %s' % ' '.join(sys.argv)
+    print '========='
+    raise
+
+  (stdout_content, err) = process.communicate()
+  process.wait()
+  return (stdout_content, err)
 
 def main():
   opts, unused_args = parse_options()
@@ -97,10 +150,38 @@ def main():
     sents = read(unused_args[0])
 
   formatter = LaTeXFormatter(opts.doc_opt, opts.tikz_opt)
-  for s in sents:
-    print formatter.doc_header()
-    print formatter.wrap_tikzpicture(to_qtree(s))
-    print formatter.doc_footer()
+  for i, s in enumerate(sents):
+    # Generate a pdf file directly for each tree structure.
+    if opts.enable_pdf:
+      temp = tempfile.NamedTemporaryFile(mode='w+t')
+      try:
+        print >>temp, formatter.doc_header()
+        print >>temp, formatter.wrap_tikzpicture(to_qtree(s))
+        print >>temp, formatter.doc_footer()
+
+        print >>sys.stderr, 'LOG: Writing generated latex file as a temporary file = %s' % temp.name
+
+        temp.seek(0)
+        base = os.path.basename(temp.name)
+        # os.system('pdflatex %s' % temp.name)
+
+        out, err = exec_latex(temp.name)
+        with open(opts.out_prefix + str(i) + '.log', 'w') as fout:
+          print >>fout, out
+          print >>fout, err
+
+        if os.path.exists(base + '.pdf'):
+          os.rename(base + '.pdf', opts.out_prefix + str(i) + '.pdf')
+
+        check_and_remove(base + '.aux')
+        check_and_remove(base + '.log')
+      finally:
+        temp.close()
+    else:
+      if i > 0: print
+      print formatter.doc_header()
+      print formatter.wrap_tikzpicture(to_qtree(s))
+      print formatter.doc_footer()
 
 if __name__ == '__main__':
   main()
