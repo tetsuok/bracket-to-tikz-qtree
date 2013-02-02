@@ -10,6 +10,7 @@ The code is known to work on Linux and OS X.
 ### Software Requirements ###
 
 - Python 2.6 or later
+- pdfTeX (pdfLaTeX) [optional]
 
 Note that to run this tool, there is no need to install the code and additional Python packages. However, tikz-qtree package is required when you want to compile the generated latex files with this converter.
 
